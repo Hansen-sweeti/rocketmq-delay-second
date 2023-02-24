@@ -77,7 +77,7 @@ public class ScheduleMessageService extends ConfigManager {
     }
 
     //dorby
-    public Long getTicksDuration(String ticks){
+    public Long getTicks(String ticks){
         return null;
     }
 

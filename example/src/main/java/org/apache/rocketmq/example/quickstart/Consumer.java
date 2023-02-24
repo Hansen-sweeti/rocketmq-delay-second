@@ -57,7 +57,7 @@ public class Consumer {
         /*
          * Subscribe one more more topics to consume.
          */
-        consumer.subscribe("TopicTest", "TagA|Tag");
+        consumer.subscribe("TopicT", "TagA|Tag");
 
         /*
          *  Register callback to execute on arrival of messages fetched from brokers.

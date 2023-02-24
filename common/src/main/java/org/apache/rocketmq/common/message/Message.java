@@ -136,6 +136,25 @@ public class Message implements Serializable {
         this.setKeys(sb.toString().trim());
     }
 
+    //dorby
+    public String getTicks() {
+        return this.getProperty(MessageConst.PROPERTY_TICKS);
+    }
+
+    public void setTicks(String ticks) {
+        this.putProperty(MessageConst.PROPERTY_TICKS,ticks);
+    }
+
+    public String getDuration() {
+        return this.getProperty(MessageConst.PROPERTY_DURATION);
+    }
+
+    public void setDuration(String duration) {
+        this.putProperty(MessageConst.PROPERTY_DURATION,duration);
+    }
+
+
+
     public int getDelayTimeLevel() {
         String t = this.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL);
         if (t != null) {

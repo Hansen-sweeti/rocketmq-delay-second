@@ -44,7 +44,6 @@ import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.FlushDiskType;
 import org.apache.rocketmq.store.ha.HAService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
-import org.apache.rocketmq.store.schedule.SecondLevelScheduleMessageService;
 
 /**
  * Store all metadata downtime for recovery, data protection reliability
@@ -361,12 +360,13 @@ public class CommitLog {
                         }
 
 
+
                         // dorby
                         if(delayLevel==19){
                             //精确延时
-                            Long ticksDuration = defaultMessageStore.getScheduleMessageService().getTicksDuration(propertiesMap.get(MessageConst.PROPERTY_TICKS));
-                            tagsCode = storeTimestamp + ticksDuration * Long.valueOf(MessageConst.PROPERTY_DURATION);
-                        }else if (delayLevel > 0) {
+                            Long ticksDuration = defaultMessageStore.getScheduleMessageService().getTicks(propertiesMap.get(MessageConst.PROPERTY_TICKS));
+                            tagsCode = storeTimestamp + ticksDuration * Long.valueOf(propertiesMap.get(MessageConst.PROPERTY_DURATION));
+                        }else if (delayLevel < 19 && delayLevel > 0) {
                             tagsCode = this.defaultMessageStore.getScheduleMessageService().computeDeliverTimestamp(delayLevel,
                                 storeTimestamp);
                         }

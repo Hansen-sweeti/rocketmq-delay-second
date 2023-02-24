@@ -73,7 +73,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
     }
 
     //dorby
-    public Long getTicksDuration(String ticks){
+    public Long getTicks(String ticks){
         return ticksDuration.get(ticks);
     }
 
@@ -120,9 +120,10 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
     }
 
     public void start() {
+        //dorby secondLevelDelay只需要一个延时时间轮==》19
         if (started.compareAndSet(false, true)) {
             this.timer = new Timer("SecondLevelMessageTimerThread", true);
-            for (Map.Entry<Integer, Long> entry : this.delayLevelTable.entrySet()) {
+            /*for (Map.Entry<Integer, Long> entry : this.delayLevelTable.entrySet()) {
                 Integer level = entry.getKey();
                 Long timeDelay = entry.getValue();
                 Long offset = this.offsetTable.get(level);
@@ -133,8 +134,9 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                 if (timeDelay != null) {
                     this.timer.schedule(new DeliverDelayedMessageTimerTask(level, offset), FIRST_DELAY_TIME);
                 }
-            }
-
+            }*/
+            Long offset = this.offsetTable.get(19);
+            this.timer.schedule(new DeliverDelayedMessageTimerTask(19, offset), FIRST_DELAY_TIME);
             this.timer.scheduleAtFixedRate(new TimerTask() {
 
                 @Override
@@ -175,6 +177,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
         return result;
     }
 
+    //dorby
     public boolean ticksDurationInit(){
         ticksDuration.put("ms",1L);
         ticksDuration.put("s",1000L);
@@ -184,8 +187,9 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
         return true;
     }
 
-    @Override
-    public String configFilePath() {
+    //dorby
+     @Override
+   public String configFilePath() {
         return StorePathConfigHelper.getSecondLevelDelayOffsetStorePath(this.defaultMessageStore.getMessageStoreConfig()
                 .getStorePathRootDir());
     }
@@ -220,16 +224,25 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
             for (int i = 0; i < levelArray.length; i++) {
                 String value = levelArray[i];
                 String ch = value.substring(value.length() - 1);
-                Long tu = timeUnitTable.get(ch);
-
                 int level = i + 1;
                 if (level > this.maxDelayLevel) {
                     this.maxDelayLevel = level;
                 }
+
+
+                //dorby
+                if(ch.equals("p")){
+                    this.delayLevelTable.put(level, 1L);
+                    continue;
+                }
+                Long tu = timeUnitTable.get(ch);
+
+
                 long num = Long.parseLong(value.substring(0, value.length() - 1));
                 long delayTimeMillis = tu * num;
                 this.delayLevelTable.put(level, delayTimeMillis);
             }
+            log.info("maxLevel: ",this.getMaxDelayLevel());
         } catch (Exception e) {
             log.error("parseDelayLevel exception", e);
             log.info("levelString String = {}", levelString);
@@ -266,7 +279,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
          * @return
          */
         private long correctDeliverTimestamp(final long now, final long deliverTimestamp) {
-
+            //dorby
             long result = deliverTimestamp;
 
             long maxTimestamp = now + SecondLevelScheduleMessageService.this.delayLevelTable.get(this.delayLevel);
@@ -314,7 +327,8 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
 
                             long now = System.currentTimeMillis();
                             //tagscode 是发送消息的时间戳
-                            long deliverTimestamp = this.correctDeliverTimestamp(now, tagsCode);
+                            //dorby
+                            long deliverTimestamp = tagsCode;
 
                             nextOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
 
@@ -368,7 +382,10 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                                     }
                                 }
                             } else {
-                                //
+                                //dorby
+
+
+
                                 SecondLevelScheduleMessageService.this.timer.schedule(
                                         new DeliverDelayedMessageTimerTask(this.delayLevel, nextOffset),
                                         countdown);
