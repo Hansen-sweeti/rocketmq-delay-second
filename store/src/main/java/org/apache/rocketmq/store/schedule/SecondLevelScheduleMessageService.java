@@ -16,15 +16,13 @@
  */
 package org.apache.rocketmq.store.schedule;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.netty.util.Timeout;
 import org.apache.rocketmq.common.ConfigManager;
+import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.TopicFilterType;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.topic.TopicValidator;
@@ -62,18 +60,24 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
     private Timer timer;
     private MessageStore writeMessageStore;
     private int maxDelayLevel;
+    //dorby
+    private volatile long startTime;
 
     //dorby
-    private final HashMap<String ,Long> ticksDuration = new HashMap<>();
+    private final HashMap<String, Long> ticksDuration = new HashMap<>();
+
+    private HashedWheelTimer hashedWheelTimer;
 
     public SecondLevelScheduleMessageService(final DefaultMessageStore defaultMessageStore) {
         super(defaultMessageStore);
         this.defaultMessageStore = defaultMessageStore;
         this.writeMessageStore = defaultMessageStore;
+        this.hashedWheelTimer = new HashedWheelTimer(Executors.defaultThreadFactory(), 1L,
+                TimeUnit.SECONDS, 8, -1, defaultMessageStore);
     }
 
     //dorby
-    public Long getTicks(String ticks){
+    public Long getTicks(String ticks) {
         return ticksDuration.get(ticks);
     }
 
@@ -86,8 +90,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
     }
 
     /**
-     * @param writeMessageStore
-     *     the writeMessageStore to set
+     * @param writeMessageStore the writeMessageStore to set
      */
     public void setWriteMessageStore(MessageStore writeMessageStore) {
         this.writeMessageStore = writeMessageStore;
@@ -136,6 +139,9 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                 }
             }*/
             Long offset = this.offsetTable.get(19);
+            if (null == offset) {
+                offset = 0L;
+            }
             this.timer.schedule(new DeliverDelayedMessageTimerTask(19, offset), FIRST_DELAY_TIME);
             this.timer.scheduleAtFixedRate(new TimerTask() {
 
@@ -178,18 +184,19 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
     }
 
     //dorby
-    public boolean ticksDurationInit(){
-        ticksDuration.put("ms",1L);
-        ticksDuration.put("s",1000L);
-        ticksDuration.put("m",1000 * 60L);
-        ticksDuration.put("h",1000 * 60 * 60L);
-        ticksDuration.put("d",1000 * 60 * 60 * 24L);
+    public boolean ticksDurationInit() {
+        ticksDuration.put("ns", 1000000L);
+        ticksDuration.put("ms", ticksDuration.get("ns") * 1L);
+        ticksDuration.put("s", ticksDuration.get("ns") * 1000L);
+        ticksDuration.put("m", ticksDuration.get("ns") * 1000 * 60L);
+        ticksDuration.put("h", ticksDuration.get("ns") * 1000 * 60 * 60L);
+        ticksDuration.put("d", ticksDuration.get("ns") * 1000 * 60 * 60 * 24L);
         return true;
     }
 
     //dorby
-     @Override
-   public String configFilePath() {
+    @Override
+    public String configFilePath() {
         return StorePathConfigHelper.getSecondLevelDelayOffsetStorePath(this.defaultMessageStore.getMessageStoreConfig()
                 .getStorePathRootDir());
     }
@@ -218,7 +225,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
         timeUnitTable.put("h", 1000L * 60 * 60);
         timeUnitTable.put("d", 1000L * 60 * 60 * 24);
 
-        String levelString = this.defaultMessageStore.getMessageStoreConfig().getMessageDelayLevel();
+        String levelString = this.defaultMessageStore.getMessageStoreConfig().getSecondLevelMessageDelayLevel();
         try {
             String[] levelArray = levelString.split(" ");
             for (int i = 0; i < levelArray.length; i++) {
@@ -231,7 +238,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
 
 
                 //dorby
-                if(ch.equals("p")){
+                if (ch.equals("p")) {
                     this.delayLevelTable.put(level, 1L);
                     continue;
                 }
@@ -242,7 +249,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                 long delayTimeMillis = tu * num;
                 this.delayLevelTable.put(level, delayTimeMillis);
             }
-            log.info("maxLevel: ",this.getMaxDelayLevel());
+            log.info("maxLevel: ", this.getMaxDelayLevel());
         } catch (Exception e) {
             log.error("parseDelayLevel exception", e);
             log.info("levelString String = {}", levelString);
@@ -369,12 +376,6 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                                             return;
                                         }
                                     } catch (Exception e) {
-                                        /*
-                                         * XXX: warn and notify me
-
-
-
-                                         */
                                         log.error(
                                                 "SecondLevelScheduleMessageService, messageTimeup execute error, drop it. msgExt="
                                                         + msgExt + ", nextOffset=" + nextOffset + ",offsetPy="
@@ -383,14 +384,11 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                                 }
                             } else {
                                 //dorby
-
-
-
-                                SecondLevelScheduleMessageService.this.timer.schedule(
+                                hashedWheelTimer.newTimeout(new Task(offsetPy, sizePy, tagsCode), 19, TimeUnit.SECONDS);
+                                /*SecondLevelScheduleMessageService.this.timer.schedule(
                                         new DeliverDelayedMessageTimerTask(this.delayLevel, nextOffset),
                                         countdown);
-                                SecondLevelScheduleMessageService.this.updateOffset(this.delayLevel, nextOffset);
-                                return;
+                                SecondLevelScheduleMessageService.this.updateOffset(this.delayLevel, nextOffset);*/
                             }
                         } // end of for
 
@@ -398,6 +396,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                         SecondLevelScheduleMessageService.this.timer.schedule(new DeliverDelayedMessageTimerTask(
                                 this.delayLevel, nextOffset), DELAY_FOR_A_WHILE);
                         SecondLevelScheduleMessageService.this.updateOffset(this.delayLevel, nextOffset);
+                        System.out.println(nextOffset);
                         return;
                     } finally {
 
@@ -446,7 +445,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
             int queueId = Integer.parseInt(queueIdStr);
             msgInner.setQueueId(queueId);
 
-            
+
             return msgInner;
         }
     }

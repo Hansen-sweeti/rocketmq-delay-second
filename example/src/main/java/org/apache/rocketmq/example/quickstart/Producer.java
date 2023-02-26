@@ -51,7 +51,7 @@ public class Producer {
          */
         producer.start();
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 1; i++) {
             try {
 
                 /*
@@ -63,12 +63,12 @@ public class Producer {
                 );
                 msg.setDelayTimeLevel(19);
                 msg.setTicks("s");
-                msg.setDuration("71");
+                msg.setDuration("1");
 
                 /*
                  * Call send message to deliver message to one of brokers.
                  */
-                SendResult sendResult = producer.send(msg,100000);
+                SendResult sendResult = producer.send(msg);
 
                 System.out.printf("%s%n", sendResult);
             } catch (Exception e) {

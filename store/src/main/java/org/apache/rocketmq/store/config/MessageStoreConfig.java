@@ -127,7 +127,8 @@ public class MessageStoreConfig {
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
     private int syncFlushTimeout = 1000 * 5;
     //dorby 使用p代表使用精确延时 等级 1-18 ，加一个p代表精确定时,即19代表精确延时
-    private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h 1p";
+    private String secondLevelMessageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h 1p";
+    private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
     @ImportantField
     private boolean cleanFileForciblyEnable = true;
@@ -543,6 +544,10 @@ public class MessageStoreConfig {
 
     public String getMessageDelayLevel() {
         return messageDelayLevel;
+    }
+
+    public String getSecondLevelMessageDelayLevel(){
+        return secondLevelMessageDelayLevel;
     }
 
     public void setMessageDelayLevel(String messageDelayLevel) {
