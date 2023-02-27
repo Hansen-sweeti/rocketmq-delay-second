@@ -54,7 +54,7 @@ public class ScheduleMessageServiceTest {
     /**
      * choose delay level
      */
-    int delayLevel = 2;
+    int delayLevel = 19;
 
     private static final String storePath = System.getProperty("user.home") + File.separator + "schedule_test#" + UUID.randomUUID();
     private static final int commitLogFileSize = 1024;
@@ -116,6 +116,8 @@ public class ScheduleMessageServiceTest {
         int realQueueId = msg.getQueueId();
         // set delayLevel,and send delay message
         msg.setDelayTimeLevel(delayLevel);
+        msg.setTicks("s");
+        msg.setDuration("8");
         PutMessageResult result = messageStore.putMessage(msg);
         assertThat(result.isOk()).isTrue();
 

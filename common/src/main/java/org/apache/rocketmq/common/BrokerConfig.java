@@ -188,7 +188,7 @@ public class BrokerConfig {
     private boolean autoDeleteUnusedStats = false;
 
     //dorby
-    private boolean secondDelayMessageServiceEnable = false;
+    private boolean secondDelayMessageServiceEnable = true;
 
     public void setSecondDelayMessageServiceEnable(final boolean secondDelayMessageServiceEnable){
         this.secondDelayMessageServiceEnable=secondDelayMessageServiceEnable;
