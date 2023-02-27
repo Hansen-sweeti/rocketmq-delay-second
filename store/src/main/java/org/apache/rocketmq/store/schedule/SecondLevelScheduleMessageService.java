@@ -148,6 +148,7 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
                 @Override
                 public void run() {
                     try {
+                        //persist offsetTable
                         if (started.get()) SecondLevelScheduleMessageService.this.persist();
                     } catch (Throwable e) {
                         log.error("SecondLevelAtFixedRate flush exception", e);
@@ -179,6 +180,8 @@ public class SecondLevelScheduleMessageService extends ScheduleMessageService {
 
     public boolean load() {
         boolean result = super.load();
+        //dorby
+        result=result&&hashedWheelTimer.load();
         result = result && this.parseDelayLevel() && this.ticksDurationInit();
         return result;
     }

@@ -29,10 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 
-
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import javafx.concurrent.Worker;
 import org.apache.rocketmq.common.TopicFilterType;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.message.MessageAccessor;
@@ -42,10 +42,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
-import org.apache.rocketmq.store.DefaultMessageStore;
-import org.apache.rocketmq.store.MessageExtBrokerInner;
-import org.apache.rocketmq.store.PutMessageResult;
-import org.apache.rocketmq.store.PutMessageStatus;
+import org.apache.rocketmq.store.*;
 
 
 public class HashedWheelTimer implements Timer {
@@ -207,6 +204,25 @@ public class HashedWheelTimer implements Timer {
         wheel = createWheel(ticksPerWheel);
         mask = wheel.length - 1;
 
+        java.util.Timer timer = new java.util.Timer();
+        try {
+            timer.scheduleAtFixedRate(new java.util.TimerTask() {
+
+                @Override
+                public void run() {
+                    try {
+                        if (HashedWheelTimer.workerStateUpdater.get(HashedWheelTimer.this) == WORKER_STATE_STARTED) {
+                            HashedWheelTimer.this.persist();
+                        }
+                    } catch (Throwable e) {
+                        log.error("SecondLevelAtFixedRate flush exception", e);
+                    }
+                }
+            }, 10000, 10000);
+        } catch (Exception e) {
+
+        }
+
         // Convert tickDuration to nanos.
         this.tickDuration = unit.toNanos(tickDuration);
 
@@ -225,6 +241,15 @@ public class HashedWheelTimer implements Timer {
             reportTooManyInstances();
         }
     }
+
+    public boolean load() {
+        return true;
+    }
+
+    private void persist() {
+
+    }
+
 
     @Override
     protected void finalize() throws Throwable {
@@ -366,7 +391,7 @@ public class HashedWheelTimer implements Timer {
         if (delay > 0 && deadline < 0) {
             deadline = Long.MAX_VALUE;
         }
-        HashedWheelTimeout timeout = new HashedWheelTimeout(this, task, deadline,defaultMessageStore);
+        HashedWheelTimeout timeout = new HashedWheelTimeout(this, task, deadline, defaultMessageStore);
         timeouts.add(timeout);
         return timeout;
     }
@@ -381,6 +406,7 @@ public class HashedWheelTimer implements Timer {
         log.error("You are creating too many {} instances.  {} is a shared resource that must be "
                 + "reused across the JVM, so that only a few instances are created.", resourceType, resourceType);
     }
+
 
     private final class Worker implements Runnable {
         private final Set<Timeout> unprocessedTimeouts = new HashSet<>();
